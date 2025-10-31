@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Co-Search</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 100px;
+      background: #f9f9f9;
+    }
+
+    h1 {
+      font-size: 64px;
+      color: #4285f4;
+      font-weight: 500;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    #query {
+      width: 60%;
+      padding: 10px;
+      font-size: 18px;
+      border: 1px solid #ccc;
+      border-radius: 25px;
+      outline: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      margin-left: 10px;
+      cursor: pointer;
+      border: none;
+      background-color: #4285f4;
+      color: white;
+      border-radius: 25px;
+    }
+
+    button:hover {
+      background-color: #357ae8;
+    }
+
+    #results {
+      margin-top: 40px;
+      text-align: left;
+      width: 60%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .result {
+      margin-bottom: 25px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .result a {
+      color: #1a0dab;
+      font-size: 20px;
+      text-decoration: none;
+    }
+
+    .result a:hover {
+      text-decoration: underline;
+    }
+
+    .result p {
+      color: #444;
+      margin: 5px 0 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Co-Search</h1>
+
+  <form id="searchForm">
+    <input type="text" id="query" placeholder="Search the web..." required>
+    <button type="submit">Search</button>
+  </form>
+
+  <div id="results"></div>
+
+  <script>
+    document.getElementById("searchForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const query = document.getElementById("query").value.trim();
+      if (!query) return;
+
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "<p>Searching...</p>";
+
+      try {
+        // DuckDuckGo Instant Answer API (JSONP disabled, use JSON endpoint)
+        const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        let html = "";
+
+        // Show the main abstract or answer
+        if (data.AbstractText) {
+          html += `
+            <div class="result">
+              <strong>${data.Heading}</strong>
+              <p>${data.AbstractText}</p>
+              ${data.AbstractURL ? `<a href="${data.AbstractURL}" target="_blank">Read more</a>` : ""}
+            </div>
+          `;
+        }
+
+        // Show related topics
+        if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+          html += data.RelatedTopics.map(topic => {
+            if (topic.Text && topic.FirstURL) {
+              return `
+                <div class="result">
+                  <a href="${topic.FirstURL}" target="_blank">${topic.Text}</a>
+                </div>
+              `;
+            } else if (topic.Topics) {
+              // nested topics
+              return topic.Topics.map(sub => `
+                <div class="result">
+                  <a href="${sub.FirstURL}" target="_blank">${sub.Text}</a>
+                </div>
+              `).join("");
+            }
+            return "";
+          }).join("");
+        }
+
+        if (!html) html = "<p>No results found. Try another search.</p>";
+        resultsDiv.innerHTML = html;
+
+      } catch (err) {
+        console.error(err);
+        resultsDiv.innerHTML = "<p style='color:red;'>Error fetching results.</p>";
+      }
+    });
+  </script>
+</body>
+</html>
